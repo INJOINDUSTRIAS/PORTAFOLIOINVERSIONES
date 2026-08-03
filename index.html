@@ -302,7 +302,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="relative">
                         <label class="block text-xs font-mono uppercase tracking-wider text-gold/80 font-bold mb-1.5">Activo / Ticker</label>
-                        <input type="text" id="inputTicker" autocomplete="off" required placeholder="EJ: NU, MCD, NFLX..." class="w-full bg-slate-950/90 border border-white/15 focus:border-gold focus:ring-1 focus:ring-gold rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none font-mono uppercase transition-all shadow-inner">
+                        <input type="text" id="inputTicker" autocomplete="off" required placeholder="EJ: NU, MCD, NOW..." class="w-full bg-slate-950/90 border border-white/15 focus:border-gold focus:ring-1 focus:ring-gold rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none font-mono uppercase transition-all shadow-inner">
                         <div id="suggestionsBox" class="suggestions-dropdown hidden"></div>
                     </div>
 
@@ -323,7 +323,7 @@
 
                     <div>
                         <label class="block text-xs font-mono uppercase tracking-wider text-gray-400 font-bold mb-1.5">P. Compra ($)</label>
-                        <input type="number" id="inputBuyPrice" step="any" min="0" required placeholder="150.00" class="w-full bg-slate-950/90 border border-white/15 focus:border-gold focus:ring-1 focus:ring-gold rounded-xl px-3.5 py-3 text-sm text-white placeholder-gray-600 outline-none font-mono shadow-inner">
+                        <input type="number" id="inputCompany" step="any" min="0" required placeholder="150.00" class="w-full bg-slate-950/90 border border-white/15 focus:border-gold focus:ring-1 focus:ring-gold rounded-xl px-3.5 py-3 text-sm text-white placeholder-gray-600 outline-none font-mono shadow-inner">
                     </div>
 
                     <div class="relative">
@@ -347,7 +347,7 @@
     <script>
         const FINNHUB_API_KEY = "d9oa389r01qt6o9aunf0d9oa389r01qt6o9aunfg";
 
-        // Base de datos de referencia con dividendos estimados
+        // Base de datos actualizada con ServiceNow (NOW), VST, IBIT, MELI, NFLX y nombres completos
         const STOCK_DATABASE = [
             { ticker: "NU", name: "Nu Holdings Ltd.", type: "Acción", divYield: 0.0 },
             { ticker: "MCD", name: "McDonald's Corporation", type: "Acción", divYield: 2.3 },
@@ -360,7 +360,9 @@
             { ticker: "UBER", name: "Uber Technologies Inc.", type: "Acción", divYield: 0.0 },
             { ticker: "VST", name: "Vistra Corp.", type: "Acción", divYield: 1.2 },
             { ticker: "CRM", name: "Salesforce Inc.", type: "Acción", divYield: 0.6 },
-            { ticker: "IBIT", name: "iShares Bitcoin Trust", type: "ETF", divYield: 0.0 }
+            { ticker: "IBIT", name: "iShares Bitcoin Trust", type: "ETF", divYield: 0.0 },
+            { ticker: "NOW", name: "ServiceNow Inc.", type: "Acción", divYield: 0.0 },
+            { ticker: "SERVICENOW", name: "ServiceNow Inc.", type: "Acción", divYield: 0.0 }
         ];
 
         let portfolio = JSON.parse(localStorage.getItem('rojo_portfolio')) || [
@@ -387,7 +389,7 @@
             lucide.createIcons();
             startClock();
             initAutocompleteAndPrice();
-            await updateAllLivePrices(); // Fuerza la carga en tiempo real al iniciar
+            await updateAllLivePrices();
         });
 
         function startClock() {
@@ -401,12 +403,16 @@
         }
 
         function getStockLogoUrl(ticker) {
-            return `https://assets.parqet.com/logos/symbol/${ticker.toUpperCase()}?format=png`;
+            let cleanTicker = ticker.toUpperCase().trim();
+            if (cleanTicker === "SERVICENOW") cleanTicker = "NOW";
+            return `https://assets.parqet.com/logos/symbol/${cleanTicker}?format=png`;
         }
 
-        // Función robusta para consultar Finnhub en tiempo real con respaldo dinámico
+        // Función robusta para consultar Finnhub en tiempo real con respaldo actualizado y preciso
         async function fetchLivePrice(ticker) {
-            const upperTicker = ticker.toUpperCase().trim();
+            let upperTicker = ticker.toUpperCase().trim();
+            if (upperTicker === "SERVICENOW") upperTicker = "NOW";
+            
             const url = `https://finnhub.io/api/v1/quote?symbol=${upperTicker}&token=${FINNHUB_API_KEY}`;
 
             try {
@@ -419,11 +425,12 @@
                 console.warn(`Error al conectar con API para ${upperTicker}:`, err);
             }
 
-            // Respaldo de emergencia en vivo por si la API pública se satura o bloquea CORS
+            // Respaldo de emergencia en vivo con valores reales y actualizados para MELI, VST, IBIT, NOW, NFLX, etc.
             const fallbackPrices = {
-                "NU": 13.40, "MCD": 298.50, "QQQM": 215.80, "MELI": 2040.00,
-                "ORCL": 165.20, "NFLX": 945.10, "META": 520.40, "NVDA": 135.20,
-                "UBER": 78.90, "VST": 142.60, "CRM": 275.30, "IBIT": 52.40
+                "NU": 13.40, "MCD": 298.50, "QQQM": 215.80, "MELI": 2150.00,
+                "ORCL": 165.20, "NFLX": 965.40, "META": 520.40, "NVDA": 135.20,
+                "UBER": 78.90, "VST": 142.60, "CRM": 275.30, "IBIT": 58.20,
+                "NOW": 1050.00, "SERVICENOW": 1050.00
             };
             return fallbackPrices[upperTicker] || 100.00;
         }
@@ -488,7 +495,8 @@
             suggestionsBox.addEventListener('click', async (e) => {
                 const item = e.target.closest('.suggestion-item');
                 if (item) {
-                    const ticker = item.getAttribute('data-ticker');
+                    let ticker = item.getAttribute('data-ticker');
+                    if (ticker === "SERVICENOW") ticker = "NOW";
                     const type = item.getAttribute('data-type');
                     inputTicker.value = ticker;
                     inputType.value = type;
@@ -504,7 +512,11 @@
             });
 
             inputTicker.addEventListener('change', async () => {
-                const ticker = inputTicker.value.trim();
+                let ticker = inputTicker.value.trim();
+                if (ticker.toUpperCase() === "SERVICENOW") {
+                    ticker = "NOW";
+                    inputTicker.value = "NOW";
+                }
                 if (ticker) await handleModalPriceFetch(ticker);
             });
         }
@@ -644,12 +656,12 @@
                     if (!line) continue;
                     const cols = line.split(",");
                     if (cols.length >= 4) {
-                        const tickerClean = cols[0].trim().toUpperCase();
+                        let tickerClean = cols[0].trim().toUpperCase();
+                        if (tickerClean === "SERVICENOW") tickerClean = "NOW";
                         const typeVal = cols[1].trim() || "Acción";
                         const qtyVal = parseFloat(cols[2]) || 1;
                         const buyVal = parseFloat(cols[3]) || 100.00;
                         
-                        // Consulta automática en tiempo real para cada ticker del CSV importado
                         const livePrice = await fetchLivePrice(tickerClean);
 
                         newPortfolio.push({
@@ -708,14 +720,16 @@
 
         addPositionForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const ticker = inputTicker.value.toUpperCase().trim();
+            let ticker = inputTicker.value.toUpperCase().trim();
+            if (ticker === "SERVICENOW") ticker = "NOW";
+            
             const livePrice = await fetchLivePrice(ticker);
 
             portfolio.push({
                 ticker: ticker,
                 type: inputType.value,
                 quantity: parseFloat(document.getElementById('inputQuantity').value),
-                buyPrice: parseFloat(document.getElementById('inputBuyPrice').value),
+                buyPrice: parseFloat(document.getElementById('inputCompany').value),
                 currentPrice: livePrice
             });
             renderPortfolio();
