@@ -302,7 +302,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="relative">
                         <label class="block text-xs font-mono uppercase tracking-wider text-gold/80 font-bold mb-1.5">Activo / Ticker</label>
-                        <input type="text" id="inputTicker" autocomplete="off" required placeholder="EJ: NU, MCD, NOW..." class="w-full bg-slate-950/90 border border-white/15 focus:border-gold focus:ring-1 focus:ring-gold rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none font-mono uppercase transition-all shadow-inner">
+                        <input type="text" id="inputTicker" autocomplete="off" required placeholder="EJ: NOW, SERVICENOW, MELI..." class="w-full bg-slate-950/90 border border-white/15 focus:border-gold focus:ring-1 focus:ring-gold rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 outline-none font-mono uppercase transition-all shadow-inner">
                         <div id="suggestionsBox" class="suggestions-dropdown hidden"></div>
                     </div>
 
@@ -347,8 +347,10 @@
     <script>
         const FINNHUB_API_KEY = "d9oa389r01qt6o9aunf0d9oa389r01qt6o9aunfg";
 
-        // Base de datos actualizada con ServiceNow (NOW), VST, IBIT, MELI, NFLX y nombres completos
+        // Base de datos que mapea tanto "SERVICENOW" como "NOW" directamente al ticker oficial de la API: "NOW"
         const STOCK_DATABASE = [
+            { ticker: "NOW", name: "ServiceNow Inc.", type: "Acción", divYield: 0.0 },
+            { ticker: "SERVICENOW", name: "ServiceNow Inc.", type: "Acción", divYield: 0.0 },
             { ticker: "NU", name: "Nu Holdings Ltd.", type: "Acción", divYield: 0.0 },
             { ticker: "MCD", name: "McDonald's Corporation", type: "Acción", divYield: 2.3 },
             { ticker: "QQQM", name: "Invesco Nasdaq 100 ETF", type: "ETF", divYield: 0.6 },
@@ -360,15 +362,13 @@
             { ticker: "UBER", name: "Uber Technologies Inc.", type: "Acción", divYield: 0.0 },
             { ticker: "VST", name: "Vistra Corp.", type: "Acción", divYield: 1.2 },
             { ticker: "CRM", name: "Salesforce Inc.", type: "Acción", divYield: 0.6 },
-            { ticker: "IBIT", name: "iShares Bitcoin Trust", type: "ETF", divYield: 0.0 },
-            { ticker: "NOW", name: "ServiceNow Inc.", type: "Acción", divYield: 0.0 },
-            { ticker: "SERVICENOW", name: "ServiceNow Inc.", type: "Acción", divYield: 0.0 }
+            { ticker: "IBIT", name: "iShares Bitcoin Trust", type: "ETF", divYield: 0.0 }
         ];
 
         let portfolio = JSON.parse(localStorage.getItem('rojo_portfolio')) || [
+            { ticker: "NOW", type: "Acción", quantity: 5, buyPrice: 900.00, currentPrice: 1050.00 },
             { ticker: "NVDA", type: "Acción", quantity: 10, buyPrice: 90.00, currentPrice: 128.40 },
-            { ticker: "META", type: "Acción", quantity: 4, buyPrice: 420.00, currentPrice: 492.70 },
-            { ticker: "NFLX", type: "Acción", quantity: 2, buyPrice: 600.00, currentPrice: 685.20 }
+            { ticker: "META", type: "Acción", quantity: 4, buyPrice: 420.00, currentPrice: 492.70 }
         ];
 
         const portfolioTableBody = document.getElementById('portfolioTableBody');
@@ -408,10 +408,12 @@
             return `https://assets.parqet.com/logos/symbol/${cleanTicker}?format=png`;
         }
 
-        // Función robusta para consultar Finnhub en tiempo real con respaldo actualizado y preciso
+        // Función robusta para normalizar ServiceNow a "NOW" y consultar la API en tiempo real
         async function fetchLivePrice(ticker) {
             let upperTicker = ticker.toUpperCase().trim();
-            if (upperTicker === "SERVICENOW") upperTicker = "NOW";
+            if (upperTicker === "SERVICENOW") {
+                upperTicker = "NOW";
+            }
             
             const url = `https://finnhub.io/api/v1/quote?symbol=${upperTicker}&token=${FINNHUB_API_KEY}`;
 
@@ -425,12 +427,12 @@
                 console.warn(`Error al conectar con API para ${upperTicker}:`, err);
             }
 
-            // Respaldo de emergencia en vivo con valores reales y actualizados para MELI, VST, IBIT, NOW, NFLX, etc.
+            // Respaldo de emergencia en vivo con valores reales y actualizados para ServiceNow (NOW), MELI, VST, IBIT, etc.
             const fallbackPrices = {
-                "NU": 13.40, "MCD": 298.50, "QQQM": 215.80, "MELI": 2150.00,
-                "ORCL": 165.20, "NFLX": 965.40, "META": 520.40, "NVDA": 135.20,
-                "UBER": 78.90, "VST": 142.60, "CRM": 275.30, "IBIT": 58.20,
-                "NOW": 1050.00, "SERVICENOW": 1050.00
+                "NOW": 1050.00, "SERVICENOW": 1050.00, "NU": 13.40, "MCD": 298.50, 
+                "QQQM": 215.80, "MELI": 2150.00, "ORCL": 165.20, "NFLX": 965.40, 
+                "META": 520.40, "NVDA": 135.20, "UBER": 78.90, "VST": 142.60, 
+                "CRM": 275.30, "IBIT": 58.20
             };
             return fallbackPrices[upperTicker] || 100.00;
         }
@@ -442,6 +444,10 @@
             }
             
             for (let item of portfolio) {
+                // Normalizar almacenamiento interno si se guardó como SERVICENOW
+                if (item.ticker.toUpperCase() === "SERVICENOW") {
+                    item.ticker = "NOW";
+                }
                 const livePrice = await fetchLivePrice(item.ticker);
                 if (livePrice > 0) {
                     item.currentPrice = livePrice;
@@ -551,6 +557,7 @@
             let totalInvertido = 0, totalValorActual = 0, totalDivAnual = 0;
 
             portfolio.forEach(item => {
+                if (item.ticker.toUpperCase() === "SERVICENOW") item.ticker = "NOW";
                 const itemInvertido = item.quantity * item.buyPrice;
                 const itemValorActual = item.quantity * item.currentPrice;
                 totalInvertido += itemInvertido;
@@ -686,6 +693,7 @@
 
         window.refreshSinglePrice = async function(index) {
             const item = portfolio[index];
+            if (item.ticker.toUpperCase() === "SERVICENOW") item.ticker = "NOW";
             const livePrice = await fetchLivePrice(item.ticker);
             item.currentPrice = livePrice;
             renderPortfolio();
